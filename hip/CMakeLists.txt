@@ -21,6 +21,7 @@ target_link_libraries(hiptest PRIVATE hipalgo hip::host GTest::gtest_main)
 gtest_discover_tests(hiptest)
 
 add_executable(hipbench-scan hipbench-scan.cpp)
+set_source_files_properties(hipbench-scan.cpp PROPERTIES LANGUAGE HIP)
 target_link_libraries(hipbench-scan PRIVATE hipalgo hip::host hip::hipcub benchmark::benchmark_main)
 
 add_executable(hipbench-saxpy hipbench-saxpy.cpp)

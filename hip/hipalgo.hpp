@@ -5,11 +5,6 @@
 
 namespace hipalgo {
 
-// Pretend to be gfx1102 for ROCm libraries to work
-#if __gfx1103__
-#define __gfx1102__ 1
-#endif
-
 #define HIP_TRY(...)                                                           \
   do {                                                                         \
     hipError_t res = __VA_ARGS__;                                              \
