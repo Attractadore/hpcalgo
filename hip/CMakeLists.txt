@@ -7,8 +7,8 @@ endif()
 
 find_package(hip REQUIRED CONFIG)
 find_package(hipcub REQUIRED CONFIG)
-find_package(benchmark REQUIRED CONFIG)
 find_package(GTest REQUIRED CONFIG)
+find_package(benchmark REQUIRED CONFIG)
 include(GoogleTest)
 
 add_library(hipalgo hipalgo.cpp)
@@ -17,10 +17,11 @@ target_link_libraries(hipalgo PRIVATE hip::host)
 
 enable_testing()
 add_executable(hiptest hiptest.cpp)
-set_source_files_properties(hiptest.cpp PROPERTIES LANGUAGE HIP)
 target_link_libraries(hiptest PRIVATE hipalgo hip::host GTest::gtest_main)
 gtest_discover_tests(hiptest)
 
 add_executable(hipbench-scan hipbench-scan.cpp)
-set_source_files_properties(hipbench-scan.cpp PROPERTIES LANGUAGE HIP)
 target_link_libraries(hipbench-scan PRIVATE hipalgo hip::host hip::hipcub benchmark::benchmark_main)
+
+add_executable(hipbench-saxpy hipbench-saxpy.cpp)
+target_link_libraries(hipbench-saxpy PRIVATE hipalgo hip::host benchmark::benchmark_main)

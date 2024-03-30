@@ -15,6 +15,34 @@ template <typename T> constexpr void swap(T &lhs, T &rhs) {
   rhs = std::move(tmp);
 }
 
+} // namespace
+
+namespace {
+
+template <typename T>
+__global__ void kernel_axpy(int n, T a, const T *x, T *y) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < n) {
+    y[idx] = a * x[idx] + y[idx];
+  }
+}
+
+} // namespace
+
+void saxpy(size_t n, float a, const float *d_x, float *d_y) {
+  constexpr size_t BLOCK_SIZE = 128;
+
+  size_t num_blocks = ceil_div(n, BLOCK_SIZE);
+  if (num_blocks == 0) {
+    return;
+  }
+
+  kernel_axpy<<<num_blocks, BLOCK_SIZE>>>(n, a, d_x, d_y);
+  HIP_TRY(hipGetLastError());
+}
+
+namespace {
+
 enum class ScanType {
   Exclusive,
   Inclusive,
