@@ -2,6 +2,7 @@
 #include <benchmark/benchmark.h>
 #include <cstring>
 #include <hip/hip_runtime.h>
+#include <hipblas/hipblas.h>
 #include <numeric>
 #include <vector>
 
@@ -65,6 +66,49 @@ void hip_memcpy(benchmark::State &state) {
   HIP_TRY(hipFree(d_result));
 }
 
+#define HIPBLAS_TRY(...)                                                       \
+  do {                                                                         \
+    hipblasStatus_t res = __VA_ARGS__;                                         \
+    if (res != HIPBLAS_STATUS_SUCCESS) {                                       \
+      std::fprintf(stderr, "%s:%d, %s failed: %d (%s)\n", __FILE__, __LINE__,  \
+                   #__VA_ARGS__, res, hipblasStatusToString(res));             \
+      std::exit(-1);                                                           \
+    }                                                                          \
+  } while (0)
+
+void hipblas_saxpy(benchmark::State &state) {
+  size_t n = state.range(0);
+
+  float *d_x;
+  float *d_y;
+  {
+    std::vector<float> data(n);
+    std::iota(data.begin(), data.end(), 1);
+
+    HIP_TRY(hipMalloc(&d_x, sizeof(float) * n));
+    HIP_TRY(
+        hipMemcpy(d_x, data.data(), sizeof(float) * n, hipMemcpyHostToDevice));
+
+    HIP_TRY(hipMalloc(&d_y, sizeof(float) * n));
+    HIP_TRY(
+        hipMemcpy(d_y, data.data(), sizeof(float) * n, hipMemcpyHostToDevice));
+  };
+
+  hipblasHandle_t blas;
+  HIPBLAS_TRY(hipblasCreate(&blas));
+
+  for (auto _ : state) {
+    float alpha = 1.0f;
+    HIPBLAS_TRY(hipblasSaxpy(blas, n, &alpha, d_x, 1, d_y, 1));
+    HIP_TRY(hipDeviceSynchronize());
+  }
+
+  HIPBLAS_TRY(hipblasDestroy(blas));
+
+  HIP_TRY(hipFree(d_x));
+  HIP_TRY(hipFree(d_y));
+}
+
 void saxpy(benchmark::State &state) {
   size_t n = state.range(0);
 
@@ -101,6 +145,7 @@ constexpr size_t MAX_COUNT = 512 * MB / sizeof(int);
 BENCHMARK(std_memcpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 BENCHMARK(std_tranform)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 BENCHMARK(hip_memcpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
+BENCHMARK(hipblas_saxpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 BENCHMARK(saxpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 
 } // namespace

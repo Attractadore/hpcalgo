@@ -6,6 +6,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 find_package(hip REQUIRED CONFIG)
+find_package(hipblas REQUIRED CONFIG)
 find_package(hipcub REQUIRED CONFIG)
 find_package(GTest REQUIRED CONFIG)
 find_package(benchmark REQUIRED CONFIG)
@@ -25,4 +26,4 @@ set_source_files_properties(hipbench-scan.cpp PROPERTIES LANGUAGE HIP)
 target_link_libraries(hipbench-scan PRIVATE hipalgo hip::host hip::hipcub benchmark::benchmark_main)
 
 add_executable(hipbench-saxpy hipbench-saxpy.cpp)
-target_link_libraries(hipbench-saxpy PRIVATE hipalgo hip::host benchmark::benchmark_main)
+target_link_libraries(hipbench-saxpy PRIVATE hipalgo hip::host roc::hipblas benchmark::benchmark_main)
