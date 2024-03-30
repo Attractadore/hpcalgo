@@ -5,6 +5,39 @@
 
 namespace {
 
+TEST(Axpy, Saxpy) {
+  size_t n = 1000;
+
+  float alpha = 1.0f;
+
+  std::vector<float> x(n);
+  std::iota(x.begin(), x.end(), 1);
+
+  std::vector<float> y = x;
+
+  float *d_x;
+  HIP_TRY(hipMalloc(&d_x, sizeof(float) * n));
+  HIP_TRY(hipMemcpy(d_x, x.data(), sizeof(float) * n, hipMemcpyHostToDevice));
+
+  float *d_y;
+  HIP_TRY(hipMalloc(&d_y, sizeof(float) * n));
+  HIP_TRY(hipMemcpy(d_y, y.data(), sizeof(float) * n, hipMemcpyHostToDevice));
+
+  hipalgo::saxpy(n, alpha, d_x, d_y);
+
+  std::vector<float> result(n);
+  HIP_TRY(
+      hipMemcpy(result.data(), d_y, sizeof(float) * n, hipMemcpyDeviceToHost));
+
+  HIP_TRY(hipFree(d_x));
+  HIP_TRY(hipFree(d_y));
+
+  std::transform(x.begin(), x.end(), y.begin(), y.begin(),
+                 [&](float x, float y) { return alpha * x + y; });
+
+  EXPECT_EQ(y, result);
+}
+
 void test_exc_scan(size_t n) {
   std::vector<int> data(n);
   std::iota(data.begin(), data.end(), 1);
