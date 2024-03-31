@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS FALSE)
 
 if (NOT SYCLALGO_COMPILER)
+  enable_language(CXX)
   set(ACPP_TARGETS "" CACHE STRING "" FORCE)
   find_package(AdaptiveCpp CONFIG)
   if (AdaptiveCpp_FOUND)
