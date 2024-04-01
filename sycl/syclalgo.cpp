@@ -66,9 +66,8 @@ auto axpy(sycl::queue &q, size_t n, T alpha,
     kernel_dependences.assign(dependences.begin(), dependences.end());
     cg.depends_on(kernel_dependences);
     kernel_dependences.clear();
-    cg.parallel_for(sycl::range(n), [=](sycl::id<1> idx) {
-      ay[idx] = alpha * ax[idx] + ay[idx];
-    });
+    cg.parallel_for(
+        n, [=](sycl::id<1> idx) { ay[idx] = alpha * ax[idx] + ay[idx]; });
   });
 }
 
