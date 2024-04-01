@@ -6,7 +6,37 @@ namespace {
 TEST(Axpy, Saxpy) {
   size_t n = 1000;
 
-  sycl::queue q({sycl::property::queue::in_order()});
+  sycl::queue q;
+
+  float alpha = 1.0f;
+
+  std::vector<float> x(n);
+  std::iota(x.begin(), x.end(), 1);
+
+  std::vector<float> y = x;
+
+  sycl::buffer<float> bx(x.cbegin(), x.cend());
+
+  sycl::buffer<float> by(y.cbegin(), y.cend());
+
+  syclalgo::saxpy(q, n, alpha, bx, by);
+
+  std::transform(x.begin(), x.end(), y.begin(), y.begin(),
+                 [&](float x, float y) { return alpha * x + y; });
+
+  std::vector<float> result(n);
+  q.copy(sycl::accessor(by), result.data()).wait();
+
+  EXPECT_EQ(y, result);
+}
+
+TEST(Axpy, SaxpyUSM) {
+  size_t n = 1000;
+
+  sycl::queue q{sycl::property::queue::in_order()};
+  if (not q.get_device().has(sycl::aspect::usm_device_allocations)) {
+    GTEST_SKIP() << "USM unsupported";
+  }
 
   float alpha = 1.0f;
 
@@ -21,10 +51,12 @@ TEST(Axpy, Saxpy) {
   float *d_y = sycl::malloc_device<float>(n, q);
   q.copy(y.data(), d_y, n);
 
-  syclalgo::saxpy(q, {}, n, alpha, d_x, d_y);
+  syclalgo::saxpy(q, n, alpha, d_x, d_y);
 
   std::vector<float> result(n);
-  q.copy(d_y, result.data(), n).wait();
+  q.copy(d_y, result.data(), n);
+
+  q.wait();
 
   sycl::free(d_x, q);
   sycl::free(d_y, q);
