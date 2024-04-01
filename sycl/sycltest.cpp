@@ -1,5 +1,7 @@
 #include "syclalgo.hpp"
+#include <algorithm>
 #include <gtest/gtest.h>
+#include <numeric>
 
 namespace {
 
@@ -53,16 +55,14 @@ TEST(Axpy, SaxpyUSM) {
 
   syclalgo::saxpy(q, n, alpha, d_x, d_y);
 
-  std::vector<float> result(n);
-  q.copy(d_y, result.data(), n);
+  std::transform(x.begin(), x.end(), y.begin(), y.begin(),
+                 [&](float x, float y) { return alpha * x + y; });
 
-  q.wait();
+  std::vector<float> result(n);
+  q.copy(d_y, result.data(), n).wait();
 
   sycl::free(d_x, q);
   sycl::free(d_y, q);
-
-  std::transform(x.begin(), x.end(), y.begin(), y.begin(),
-                 [&](float x, float y) { return alpha * x + y; });
 
   EXPECT_EQ(y, result);
 }

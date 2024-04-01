@@ -1,5 +1,7 @@
 #include "syclalgo.hpp"
+#include <algorithm>
 #include <benchmark/benchmark.h>
+#include <numeric>
 #if ONEMKL
 #include <oneapi/mkl.hpp>
 #endif
@@ -52,7 +54,7 @@ void sycl_memcpy(benchmark::State &state) {
   };
 
   sycl::accessor ax(bx, sycl::read_only);
-  sycl::accessor ay(bx, sycl::write_only);
+  sycl::accessor ay(by, sycl::write_only);
   for (auto _ : state) {
     q.copy(ax, ay).wait();
   }
@@ -101,7 +103,8 @@ void onemkl_saxpy(benchmark::State &state) {
 
   for (auto _ : state) {
     float alpha = 1.0f;
-    oneapi::mkl::blas::row_major::axpy(q, n, alpha, bx, 1, by, 1).wait();
+    oneapi::mkl::blas::row_major::axpy(q, n, alpha, bx, 1, by, 1);
+    q.wait();
   }
 }
 
@@ -150,7 +153,8 @@ void saxpy(benchmark::State &state) {
 
   for (auto _ : state) {
     float alpha = 1.0f;
-    syclalgo::saxpy(q, n, alpha, bx, by).wait();
+    syclalgo::saxpy(q, n, alpha, bx, by);
+    q.wait();
   }
 }
 

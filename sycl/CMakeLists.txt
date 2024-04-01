@@ -50,7 +50,7 @@ project(syclalgo LANGUAGES CXX)
 if(SYCLALGO_COMPILER MATCHES INTEL_LLVM OR SYCLALGO_COMPILER MATCHES DPCPP)
   set(dpcpp_flags -fsycl)
 
-  set(dpcpp_targets spirv64)
+  set(dpcpp_targets spir64)
 
   find_package(HIP CONFIG)
   if (HIP_FOUND)

@@ -74,9 +74,9 @@ auto axpy(sycl::queue &q, size_t n, T alpha,
 
 } // namespace
 
-auto saxpy(sycl::queue &q, size_t n, float alpha, sycl::buffer<float> &x,
-           sycl::buffer<float> &y) -> sycl::event {
-  return axpy(q, n, alpha, x, y);
+void saxpy(sycl::queue &q, size_t n, float alpha, sycl::buffer<float> &x,
+           sycl::buffer<float> &y) {
+  axpy(q, n, alpha, x, y);
 }
 
 auto saxpy(sycl::queue &q, size_t n, float alpha, const float *d_x, float *d_y,
