@@ -67,4 +67,154 @@ TEST(Axpy, SaxpyUSM) {
   EXPECT_EQ(y, result);
 }
 
+void test_exc_scan(size_t n) {
+  std::vector<int> data(n);
+  std::iota(data.begin(), data.end(), 1);
+
+  std::vector<int> scan(n);
+  std::exclusive_scan(data.begin(), data.end(), scan.begin(), 0);
+
+  sycl::queue q;
+
+  sycl::buffer<int> bdata(data.begin(), data.end());
+  sycl::buffer<int> bresult(n);
+
+  syclalgo::exc_scan(q, n, bdata, bresult);
+
+  std::vector<int> result(n);
+  q.copy(sycl::accessor(bresult), result.data()).wait();
+
+  EXPECT_EQ(scan, result);
+}
+
+void test_exc_scan_usm(size_t n) {
+  std::vector<int> data(n);
+  std::iota(data.begin(), data.end(), 1);
+
+  std::vector<int> scan(n);
+  std::exclusive_scan(data.begin(), data.end(), scan.begin(), 0);
+
+  sycl::queue q{sycl::property::queue::in_order()};
+
+  int *d_data = sycl::malloc_device<int>(n, q);
+  q.copy(data.data(), d_data, n);
+
+  int *d_result = sycl::malloc_device<int>(n, q);
+
+  syclalgo::exc_scan(q, n, d_data, d_result);
+
+  std::vector<int> result(n);
+  q.copy(d_result, result.data(), n).wait();
+
+  sycl::free(d_data, q);
+  sycl::free(d_result, q);
+
+  EXPECT_EQ(scan, result);
+}
+
+TEST(Scan, ExcScan) {
+  {
+    SCOPED_TRACE("exc_scan: single block");
+    test_exc_scan(100);
+  }
+  {
+    SCOPED_TRACE("exc_scan: multi block");
+    test_exc_scan(1000);
+  }
+  {
+    SCOPED_TRACE("exc_scan: multi level");
+    test_exc_scan(100'000);
+  }
+}
+
+TEST(Scan, ExcScanUSM) {
+  {
+    SCOPED_TRACE("exc_scan_usm: single block");
+    test_exc_scan_usm(100);
+  }
+  {
+    SCOPED_TRACE("exc_scan_usm: multi block");
+    test_exc_scan_usm(1000);
+  }
+  {
+    SCOPED_TRACE("exc_scan_usm: multi level");
+    test_exc_scan_usm(100'000);
+  }
+}
+
+void test_inc_scan(size_t n) {
+  std::vector<int> data(n);
+  std::iota(data.begin(), data.end(), 1);
+
+  std::vector<int> scan(n);
+  std::inclusive_scan(data.begin(), data.end(), scan.begin());
+
+  sycl::queue q;
+
+  sycl::buffer<int> bdata(data.begin(), data.end());
+  sycl::buffer<int> bresult(n);
+
+  syclalgo::inc_scan(q, n, bdata, bresult);
+
+  std::vector<int> result(n);
+  q.copy(sycl::accessor(bresult), result.data()).wait();
+
+  EXPECT_EQ(scan, result);
+}
+
+void test_inc_scan_usm(size_t n) {
+  std::vector<int> data(n);
+  std::iota(data.begin(), data.end(), 1);
+
+  std::vector<int> scan(n);
+  std::inclusive_scan(data.begin(), data.end(), scan.begin());
+
+  sycl::queue q{sycl::property::queue::in_order()};
+
+  int *d_data = sycl::malloc_device<int>(n, q);
+  q.copy(data.data(), d_data, n);
+
+  int *d_result = sycl::malloc_device<int>(n, q);
+
+  syclalgo::inc_scan(q, n, d_data, d_result);
+
+  std::vector<int> result(n);
+  q.copy(d_result, result.data(), n).wait();
+
+  sycl::free(d_data, q);
+  sycl::free(d_result, q);
+
+  EXPECT_EQ(scan, result);
+}
+
+TEST(Scan, IncScan) {
+  {
+    SCOPED_TRACE("inc_scan: single block");
+    test_inc_scan(100);
+  }
+  {
+    SCOPED_TRACE("inc_scan: multi block");
+    test_inc_scan(1000);
+  }
+  {
+    SCOPED_TRACE("inc_scan: multi level");
+    test_inc_scan(100'000);
+  }
+}
+
+TEST(Scan, IncScanUSM) {
+  {
+    SCOPED_TRACE("inc_scan_usm: single block");
+    test_inc_scan_usm(100);
+  }
+  {
+    SCOPED_TRACE("inc_scan_usm: multi block");
+    test_inc_scan_usm(1000);
+  }
+  {
+    SCOPED_TRACE("inc_scan_usm: multi level");
+    test_inc_scan_usm(100'000);
+  }
+}
+
 } // namespace
