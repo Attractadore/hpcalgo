@@ -45,14 +45,14 @@ void test_exc_scan(sycl::queue &q, size_t n) {
   std::exclusive_scan(data.begin(), data.end(), scan.begin(), 0);
 
   int *d_data = sycl::malloc_device<int>(n, q);
-  q.copy(data.data(), d_data, n);
+  sycl::event e = q.copy(data.data(), d_data, n);
 
   int *d_result = sycl::malloc_device<int>(n, q);
 
-  syclalgo::exc_scan(q, n, d_data, d_result);
+  e = syclalgo::exc_scan(q, n, d_data, d_result, {&e, 1});
 
   std::vector<int> result(n);
-  q.copy(d_result, result.data(), n).wait();
+  q.copy(d_result, result.data(), n, e).wait();
 
   sycl::free(d_data, q);
   sycl::free(d_result, q);
@@ -61,8 +61,7 @@ void test_exc_scan(sycl::queue &q, size_t n) {
 }
 
 TEST(Scan, ExcScan) {
-  sycl::queue q{sycl::property::queue::in_order()};
-
+  sycl::queue q;
   {
     SCOPED_TRACE("exc_scan: single block");
     test_exc_scan(q, 100);
@@ -85,14 +84,14 @@ void test_inc_scan(sycl::queue &q, size_t n) {
   std::inclusive_scan(data.begin(), data.end(), scan.begin());
 
   int *d_data = sycl::malloc_device<int>(n, q);
-  q.copy(data.data(), d_data, n);
+  sycl::event e = q.copy(data.data(), d_data, n);
 
   int *d_result = sycl::malloc_device<int>(n, q);
 
-  syclalgo::inc_scan(q, n, d_data, d_result);
+  e = syclalgo::inc_scan(q, n, d_data, d_result, {&e, 1});
 
   std::vector<int> result(n);
-  q.copy(d_result, result.data(), n).wait();
+  q.copy(d_result, result.data(), n, e).wait();
 
   sycl::free(d_data, q);
   sycl::free(d_result, q);
@@ -101,8 +100,7 @@ void test_inc_scan(sycl::queue &q, size_t n) {
 }
 
 TEST(Scan, IncScan) {
-  sycl::queue q{sycl::property::queue::in_order()};
-
+  sycl::queue q;
   {
     SCOPED_TRACE("inc_scan: single block");
     test_inc_scan(q, 100);
