@@ -117,11 +117,13 @@ constexpr size_t MB = 1024 * 1024;
 constexpr size_t MIN_COUNT = 1 * MB / sizeof(int);
 constexpr size_t MAX_COUNT = 512 * MB / sizeof(int);
 
+#if 0
 BENCHMARK(std_memcpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 BENCHMARK(std_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 BENCHMARK(sycl_memcpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 #if ONEDPL
 BENCHMARK(onedpl_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
+#endif
 #endif
 BENCHMARK(exc_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 
