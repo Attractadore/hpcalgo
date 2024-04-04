@@ -44,30 +44,7 @@ void std_tranform(benchmark::State &state) {
 void sycl_memcpy(benchmark::State &state) {
   size_t n = state.range(0);
 
-  sycl::queue q;
-
-  sycl::buffer<float> bx(n);
-  sycl::buffer<float> by(n);
-  {
-    sycl::host_accessor ax(bx, sycl::write_only, sycl::no_init);
-    std::iota(ax.begin(), ax.end(), 1);
-  };
-
-  sycl::accessor ax(bx, sycl::read_only);
-  sycl::accessor ay(by, sycl::write_only);
-  for (auto _ : state) {
-    q.copy(ax, ay).wait();
-  }
-}
-
-void sycl_memcpy_usm(benchmark::State &state) {
-  size_t n = state.range(0);
-
   sycl::queue q{sycl::property::queue::in_order()};
-  if (not q.get_device().has(sycl::aspect::usm_device_allocations)) {
-    state.SkipWithError("USM unsupported");
-    return;
-  }
 
   float *d_x = sycl::malloc_device<float>(n, q);
   float *d_y = sycl::malloc_device<float>(n, q);
@@ -90,32 +67,7 @@ void sycl_memcpy_usm(benchmark::State &state) {
 void onemkl_saxpy(benchmark::State &state) {
   size_t n = state.range(0);
 
-  sycl::queue q;
-
-  sycl::buffer<float> bx(n);
-  sycl::buffer<float> by(n);
-  {
-    sycl::host_accessor ax(bx, sycl::write_only, sycl::no_init);
-    sycl::host_accessor ay(by, sycl::write_only, sycl::no_init);
-    std::iota(ax.begin(), ax.end(), 1);
-    std::iota(ay.begin(), ay.end(), 1);
-  };
-
-  for (auto _ : state) {
-    float alpha = 1.0f;
-    oneapi::mkl::blas::row_major::axpy(q, n, alpha, bx, 1, by, 1);
-    q.wait();
-  }
-}
-
-void onemkl_saxpy_usm(benchmark::State &state) {
-  size_t n = state.range(0);
-
   sycl::queue q{sycl::property::queue::in_order()};
-  if (not q.get_device().has(sycl::aspect::usm_device_allocations)) {
-    state.SkipWithError("USM unsupported");
-    return;
-  }
 
   float *d_x = sycl::malloc_device<float>(n, q);
   float *d_y = sycl::malloc_device<float>(n, q);
@@ -140,32 +92,7 @@ void onemkl_saxpy_usm(benchmark::State &state) {
 void saxpy(benchmark::State &state) {
   size_t n = state.range(0);
 
-  sycl::queue q;
-
-  sycl::buffer<float> bx(n);
-  sycl::buffer<float> by(n);
-  {
-    sycl::host_accessor ax(bx, sycl::write_only, sycl::no_init);
-    sycl::host_accessor ay(by, sycl::write_only, sycl::no_init);
-    std::iota(ax.begin(), ax.end(), 1);
-    std::iota(ay.begin(), ay.end(), 1);
-  };
-
-  for (auto _ : state) {
-    float alpha = 1.0f;
-    syclalgo::saxpy(q, n, alpha, bx, by);
-    q.wait();
-  }
-}
-
-void saxpy_usm(benchmark::State &state) {
-  size_t n = state.range(0);
-
   sycl::queue q{sycl::property::queue::in_order()};
-  if (not q.get_device().has(sycl::aspect::usm_device_allocations)) {
-    state.SkipWithError("USM unsupported");
-    return;
-  }
 
   float *d_x = sycl::malloc_device<float>(n, q);
   float *d_y = sycl::malloc_device<float>(n, q);
@@ -193,12 +120,9 @@ constexpr size_t MAX_COUNT = 512 * MB / sizeof(float);
 BENCHMARK(std_memcpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 BENCHMARK(std_tranform)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 BENCHMARK(sycl_memcpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
-BENCHMARK(sycl_memcpy_usm)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 #if ONEMKL
 BENCHMARK(onemkl_saxpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
-BENCHMARK(onemkl_saxpy_usm)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 #endif
 BENCHMARK(saxpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
-BENCHMARK(saxpy_usm)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 
 } // namespace
