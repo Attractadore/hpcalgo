@@ -3,6 +3,7 @@
 #include <cstring>
 #include <numeric>
 #if ONEDPL
+#include <cmath>
 #include <oneapi/dpl/async>
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/iterator>
