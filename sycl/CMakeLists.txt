@@ -107,16 +107,6 @@ if(SYCLALGO_COMPILER STREQUAL INTEL_LLVM OR SYCLALGO_COMPILER STREQUAL DPCPP)
   endfunction()
 endif()
 
-# oneMKL links to oneAPI sycl runtime
-if (SYCLALGO_COMPILER STREQUAL DPCPP)
-  find_package(MKL CONFIG)
-  if (TARGET MKL::MKL_DPCPP)
-    add_library(oneMKL INTERFACE)
-    target_link_libraries(oneMKL INTERFACE MKL::MKL_DPCPP)
-    target_compile_definitions(oneMKL INTERFACE ONEMKL)
-  endif()
-endif()
-
 if(SYCLALGO_COMPILER STREQUAL INTEL_LLVM OR SYCLALGO_COMPILER STREQUAL DPCPP)
   find_package(oneDPL CONFIG)
   if (TARGET oneDPL)
@@ -138,7 +128,7 @@ add_sycl_to_target(TARGET sycltest)
 gtest_discover_tests(sycltest)
 
 add_executable(syclbench-saxpy syclbench-saxpy.cpp)
-target_link_libraries(syclbench-saxpy PRIVATE syclalgo $<TARGET_NAME_IF_EXISTS:oneMKL> benchmark::benchmark_main)
+target_link_libraries(syclbench-saxpy PRIVATE syclalgo benchmark::benchmark_main)
 add_sycl_to_target(TARGET syclbench-saxpy)
 
 add_executable(syclbench-scan syclbench-scan.cpp)

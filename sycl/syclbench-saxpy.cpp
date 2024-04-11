@@ -2,9 +2,6 @@
 #include <algorithm>
 #include <benchmark/benchmark.h>
 #include <numeric>
-#if ONEMKL
-#include <oneapi/mkl.hpp>
-#endif
 
 namespace {
 
@@ -62,33 +59,6 @@ void sycl_memcpy(benchmark::State &state) {
   sycl::free(d_y, q);
 }
 
-#if ONEMKL
-
-void onemkl_saxpy(benchmark::State &state) {
-  size_t n = state.range(0);
-
-  sycl::queue q{sycl::property::queue::in_order()};
-
-  float *d_x = sycl::malloc_device<float>(n, q);
-  float *d_y = sycl::malloc_device<float>(n, q);
-  {
-    std::vector<float> data(n);
-    std::iota(data.begin(), data.end(), 1);
-    q.copy(data.data(), d_x, n);
-    q.copy(data.data(), d_y, n);
-  };
-
-  for (auto _ : state) {
-    float alpha = 1.0f;
-    oneapi::mkl::blas::row_major::axpy(q, n, alpha, d_x, 1, d_y, 1).wait();
-  }
-
-  sycl::free(d_x, q);
-  sycl::free(d_y, q);
-}
-
-#endif
-
 void saxpy(benchmark::State &state) {
   size_t n = state.range(0);
 
@@ -120,9 +90,6 @@ constexpr size_t MAX_COUNT = 512 * MB / sizeof(float);
 BENCHMARK(std_memcpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 BENCHMARK(std_tranform)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 BENCHMARK(sycl_memcpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
-#if ONEMKL
-BENCHMARK(onemkl_saxpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
-#endif
 BENCHMARK(saxpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 
 } // namespace
