@@ -38,7 +38,7 @@ TEST(Axpy, Saxpy) {
   EXPECT_EQ(y, result);
 }
 
-void test_exc_scan(size_t n) {
+void test_exclusive_recursive_scan(size_t n) {
   std::vector<int> data(n);
   std::iota(data.begin(), data.end(), 1);
 
@@ -53,7 +53,7 @@ void test_exc_scan(size_t n) {
   int *d_result;
   HIP_TRY(hipMalloc(&d_result, sizeof(int) * n));
 
-  hipalgo::exc_scan(n, d_data, d_result);
+  hipalgo::exclusive_recursive_scan(n, d_data, d_result);
 
   std::vector<int> result(n);
   HIP_TRY(hipMemcpy(result.data(), d_result, sizeof(int) * n,
@@ -67,24 +67,24 @@ void test_exc_scan(size_t n) {
 
 } // namespace
 
-TEST(Scan, ExcScan) {
+TEST(Scan, ExclusiveRecursiveScan) {
   {
-    SCOPED_TRACE("exc_scan: single block");
-    test_exc_scan(100);
+    SCOPED_TRACE("exclusive_recursive_scan: single block");
+    test_exclusive_recursive_scan(100);
   }
   {
-    SCOPED_TRACE("exc_scan: multi block");
-    test_exc_scan(1000);
+    SCOPED_TRACE("exclusive_recursive_scan: multi block");
+    test_exclusive_recursive_scan(1000);
   }
   {
-    SCOPED_TRACE("exc_scan: multi level");
-    test_exc_scan(100'000);
+    SCOPED_TRACE("exclusive_recursive_scan: multi level");
+    test_exclusive_recursive_scan(100'000);
   }
 }
 
 namespace {
 
-void test_inc_scan(size_t n) {
+void test_inclusive_recursive_scan(size_t n) {
   std::vector<int> data(n);
   std::iota(data.begin(), data.end(), 1);
 
@@ -99,7 +99,7 @@ void test_inc_scan(size_t n) {
   int *d_result;
   HIP_TRY(hipMalloc(&d_result, sizeof(int) * n));
 
-  hipalgo::inc_scan(n, d_data, d_result);
+  hipalgo::inclusive_recursive_scan(n, d_data, d_result);
 
   std::vector<int> result(n);
   HIP_TRY(hipMemcpy(result.data(), d_result, sizeof(int) * n,
@@ -113,17 +113,17 @@ void test_inc_scan(size_t n) {
 
 } // namespace
 
-TEST(Scan, IncScan) {
+TEST(Scan, InclusiveRecursiveScan) {
   {
-    SCOPED_TRACE("inc_scan: single block");
-    test_inc_scan(100);
+    SCOPED_TRACE("inclusive_recursive_scan: single block");
+    test_inclusive_recursive_scan(100);
   }
   {
-    SCOPED_TRACE("inc_scan: multi block");
-    test_inc_scan(1000);
+    SCOPED_TRACE("inclusive_recursive_scan: multi block");
+    test_inclusive_recursive_scan(1000);
   }
   {
-    SCOPED_TRACE("inc_scan: multi level");
-    test_inc_scan(100'000);
+    SCOPED_TRACE("inclusive_recursive_scan: multi level");
+    test_inclusive_recursive_scan(100'000);
   }
 }

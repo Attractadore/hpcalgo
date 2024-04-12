@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <hip/hip_runtime.h>
 
 namespace hipalgo {
 
@@ -17,8 +18,12 @@ namespace hipalgo {
 
 void saxpy(size_t n, float a, const float *d_x, float *d_y);
 
-void exc_scan(size_t n, const int *d_data, int *d_out);
+void exclusive_scan(size_t n, const int *d_data, int *d_out);
 
-void inc_scan(size_t n, const int *d_data, int *d_out);
+void inclusive_scan(size_t n, const int *d_data, int *d_out);
+
+void exclusive_recursive_scan(size_t n, const int *d_data, int *d_out);
+
+void inclusive_recursive_scan(size_t n, const int *d_data, int *d_out);
 
 } // namespace hipalgo

@@ -107,7 +107,7 @@ __global__ void kernel_scan_add_block_sum(int n, int *data,
   }
 }
 
-template <ScanType ST> void scan(int n, const int *data, int *out) {
+template <ScanType ST> void recursive_scan(int n, const int *data, int *out) {
   constexpr size_t BLOCK_SIZE = 64;
   constexpr size_t THREAD_ELEMENTS = 8;
   constexpr size_t BLOCK_ELEMENTS = BLOCK_SIZE * THREAD_ELEMENTS;
@@ -131,7 +131,7 @@ template <ScanType ST> void scan(int n, const int *data, int *out) {
   kernel<<<num_blocks, BLOCK_SIZE>>>(n, data, out, block_sum);
   HIP_TRY(hipGetLastError());
 
-  scan<ScanType::Exclusive>(num_blocks, block_sum, block_sum);
+  recursive_scan<ScanType::Exclusive>(num_blocks, block_sum, block_sum);
 
   kernel_scan_add_block_sum<BLOCK_SIZE, THREAD_ELEMENTS>
       <<<num_blocks, BLOCK_SIZE>>>(n, out, block_sum);
@@ -141,13 +141,21 @@ template <ScanType ST> void scan(int n, const int *data, int *out) {
 }
 
 } // namespace
-
-void exc_scan(size_t n, const int *d_data, int *d_out) {
-  scan<ScanType::Exclusive>(n, d_data, d_out);
+  //
+void exclusive_scan(size_t n, const int *d_data, int *d_out) {
+  exclusive_recursive_scan(n, d_data, d_out);
 }
 
-void inc_scan(size_t n, const int *d_data, int *d_out) {
-  scan<ScanType::Inclusive>(n, d_data, d_out);
+void inclusive_scan(size_t n, const int *d_data, int *d_out) {
+  inclusive_recursive_scan(n, d_data, d_out);
+}
+
+void exclusive_recursive_scan(size_t n, const int *d_data, int *d_out) {
+  recursive_scan<ScanType::Exclusive>(n, d_data, d_out);
+}
+
+void inclusive_recursive_scan(size_t n, const int *d_data, int *d_out) {
+  recursive_scan<ScanType::Inclusive>(n, d_data, d_out);
 }
 
 } // namespace hipalgo

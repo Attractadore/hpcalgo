@@ -95,7 +95,7 @@ void hipcub_scan(benchmark::State &state) {
   HIP_TRY(hipFree(d_scratch));
 }
 
-void exc_scan(benchmark::State &state) {
+void recursive_scan(benchmark::State &state) {
   size_t n = state.range(0);
 
   int *d_data;
@@ -111,7 +111,7 @@ void exc_scan(benchmark::State &state) {
   HIP_TRY(hipMalloc(&d_result, sizeof(int) * n));
 
   for (auto _ : state) {
-    hipalgo::exc_scan(n, d_data, d_result);
+    hipalgo::exclusive_recursive_scan(n, d_data, d_result);
     HIP_TRY(hipDeviceSynchronize());
   }
 
@@ -128,6 +128,6 @@ BENCHMARK(std_memcpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 BENCHMARK(std_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 BENCHMARK(hip_memcpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 BENCHMARK(hipcub_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
-BENCHMARK(exc_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
+BENCHMARK(recursive_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 
 } // namespace
