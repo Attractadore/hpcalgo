@@ -37,7 +37,7 @@ TEST(Axpy, Saxpy) {
   EXPECT_EQ(y, result);
 }
 
-void test_exc_scan(sycl::queue &q, size_t n) {
+void test_exclusive_recursive_scan(sycl::queue &q, size_t n) {
   std::vector<int> data(n);
   std::iota(data.begin(), data.end(), 1);
 
@@ -49,7 +49,7 @@ void test_exc_scan(sycl::queue &q, size_t n) {
 
   int *d_result = sycl::malloc_device<int>(n, q);
 
-  e = syclalgo::exc_scan(q, n, d_data, d_result, {&e, 1});
+  e = syclalgo::exclusive_recursive_scan(q, n, d_data, d_result, {&e, 1});
 
   std::vector<int> result(n);
   q.copy(d_result, result.data(), n, e).wait();
@@ -60,23 +60,23 @@ void test_exc_scan(sycl::queue &q, size_t n) {
   EXPECT_EQ(scan, result);
 }
 
-TEST(Scan, ExcScan) {
+TEST(Scan, ExclusiveRecursiveScan) {
   sycl::queue q;
   {
-    SCOPED_TRACE("exc_scan: single block");
-    test_exc_scan(q, 100);
+    SCOPED_TRACE("exclusive_recursive_scan: single block");
+    test_exclusive_recursive_scan(q, 100);
   }
   {
-    SCOPED_TRACE("exc_scan: multi block");
-    test_exc_scan(q, 1000);
+    SCOPED_TRACE("exclusive_recursive_scan: multi block");
+    test_exclusive_recursive_scan(q, 1000);
   }
   {
-    SCOPED_TRACE("exc_scan: multi level");
-    test_exc_scan(q, 100'000);
+    SCOPED_TRACE("exclusive_recursive_scan: multi iteration");
+    test_exclusive_recursive_scan(q, 100'000);
   }
 }
 
-void test_inc_scan(sycl::queue &q, size_t n) {
+void test_inclusive_recursive_scan(sycl::queue &q, size_t n) {
   std::vector<int> data(n);
   std::iota(data.begin(), data.end(), 1);
 
@@ -88,7 +88,7 @@ void test_inc_scan(sycl::queue &q, size_t n) {
 
   int *d_result = sycl::malloc_device<int>(n, q);
 
-  e = syclalgo::inc_scan(q, n, d_data, d_result, {&e, 1});
+  e = syclalgo::inclusive_recursive_scan(q, n, d_data, d_result, {&e, 1});
 
   std::vector<int> result(n);
   q.copy(d_result, result.data(), n, e).wait();
@@ -99,19 +99,89 @@ void test_inc_scan(sycl::queue &q, size_t n) {
   EXPECT_EQ(scan, result);
 }
 
-TEST(Scan, IncScan) {
+TEST(Scan, InclusiveRecursiveScan) {
   sycl::queue q;
   {
-    SCOPED_TRACE("inc_scan: single block");
-    test_inc_scan(q, 100);
+    SCOPED_TRACE("inclusive_recursive_scan: single block");
+    test_inclusive_recursive_scan(q, 100);
   }
   {
-    SCOPED_TRACE("inc_scan: multi block");
-    test_inc_scan(q, 1000);
+    SCOPED_TRACE("inclusive_recursive_scan: multi block");
+    test_inclusive_recursive_scan(q, 1000);
   }
   {
-    SCOPED_TRACE("inc_scan: multi level");
-    test_inc_scan(q, 100'000);
+    SCOPED_TRACE("inclusive_recursive_scan: multi iteration");
+    test_inclusive_recursive_scan(q, 100'000);
+  }
+}
+
+void test_exclusive_stream_scan(sycl::queue &q, size_t n) {
+  std::vector<int> data(n);
+  std::iota(data.begin(), data.end(), 1);
+
+  std::vector<int> scan(n);
+  std::exclusive_scan(data.begin(), data.end(), scan.begin(), 0);
+
+  int *d_data = sycl::malloc_device<int>(n, q);
+  sycl::event e = q.copy(data.data(), d_data, n);
+
+  int *d_result = sycl::malloc_device<int>(n, q);
+
+  e = syclalgo::exclusive_stream_scan(q, n, d_data, d_result, {&e, 1});
+
+  std::vector<int> result(n);
+  q.copy(d_result, result.data(), n, e).wait();
+
+  sycl::free(d_data, q);
+  sycl::free(d_result, q);
+
+  EXPECT_EQ(scan, result);
+}
+
+TEST(Scan, ExclusiveStreamScan) {
+  sycl::queue q;
+  {
+    SCOPED_TRACE("exclusive_stream_scan: single block");
+    test_exclusive_stream_scan(q, 100);
+  }
+  {
+    SCOPED_TRACE("exclusive_stream_scan: multi block");
+    test_exclusive_stream_scan(q, 100'000);
+  }
+}
+
+void test_inclusive_stream_scan(sycl::queue &q, size_t n) {
+  std::vector<int> data(n);
+  std::iota(data.begin(), data.end(), 1);
+
+  std::vector<int> scan(n);
+  std::inclusive_scan(data.begin(), data.end(), scan.begin());
+
+  int *d_data = sycl::malloc_device<int>(n, q);
+  sycl::event e = q.copy(data.data(), d_data, n);
+
+  int *d_result = sycl::malloc_device<int>(n, q);
+
+  e = syclalgo::inclusive_stream_scan(q, n, d_data, d_result, {&e, 1});
+
+  std::vector<int> result(n);
+  q.copy(d_result, result.data(), n, e).wait();
+
+  sycl::free(d_data, q);
+  sycl::free(d_result, q);
+
+  EXPECT_EQ(scan, result);
+}
+
+TEST(Scan, InclusiveStreamScan) {
+  sycl::queue q;
+  {
+    SCOPED_TRACE("inclusive_stream_scan: single block");
+    test_inclusive_stream_scan(q, 100);
+  }
+  {
+    SCOPED_TRACE("inclusive_stream_scan: multi block");
+    test_inclusive_stream_scan(q, 100'000);
   }
 }
 

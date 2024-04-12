@@ -91,7 +91,7 @@ void onedpl_scan(benchmark::State &state) {
 
 #endif
 
-void exc_scan(benchmark::State &state) {
+void recursive_scan(benchmark::State &state) {
   size_t n = state.range(0);
 
   sycl::queue q{sycl::property::queue::in_order()};
@@ -106,7 +106,29 @@ void exc_scan(benchmark::State &state) {
   int *d_result = sycl::malloc_device<int>(n, q);
 
   for (auto _ : state) {
-    syclalgo::exc_scan(q, n, d_data, d_result).wait();
+    syclalgo::exclusive_recursive_scan(q, n, d_data, d_result).wait();
+  }
+
+  sycl::free(d_data, q);
+  sycl::free(d_result, q);
+}
+
+void stream_scan(benchmark::State &state) {
+  size_t n = state.range(0);
+
+  sycl::queue q{sycl::property::queue::in_order()};
+
+  int *d_data = sycl::malloc_device<int>(n, q);
+  {
+    std::vector<int> data(n);
+    std::iota(data.begin(), data.end(), 1);
+    q.copy(data.data(), d_data, n);
+  };
+
+  int *d_result = sycl::malloc_device<int>(n, q);
+
+  for (auto _ : state) {
+    syclalgo::exclusive_stream_scan(q, n, d_data, d_result).wait();
   }
 
   sycl::free(d_data, q);
@@ -124,6 +146,7 @@ BENCHMARK(sycl_memcpy)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 #if ONEDPL
 BENCHMARK(onedpl_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 #endif
-BENCHMARK(exc_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
+BENCHMARK(recursive_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
+BENCHMARK(stream_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 
 } // namespace
