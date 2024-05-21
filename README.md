@@ -15,3 +15,5 @@ Standard HPC algorithms implemented in HIP and SYCL.
 * [Naive Scan](https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda)
 
 * [StreamScan](https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/streamscan/StreamScan%20Fast%20Scan%20Algorithms%20for%20GPUs%20without%20Global%20Barrier%20Synchronization_new.pdf)
+
+* [Single-pass Parallel Prefix Scan with Decoupled Look-back](https://research.nvidia.com/sites/default/files/pubs/2016-03_Single-pass-Parallel-Prefix/nvr-2016-002.pdf)

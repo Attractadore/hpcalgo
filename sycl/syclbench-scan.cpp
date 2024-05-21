@@ -135,6 +135,28 @@ void stream_scan(benchmark::State &state) {
   sycl::free(d_result, q);
 }
 
+void spwdlb_scan(benchmark::State &state) {
+  size_t n = state.range(0);
+
+  sycl::queue q{sycl::property::queue::in_order()};
+
+  int *d_data = sycl::malloc_device<int>(n, q);
+  {
+    std::vector<int> data(n);
+    std::iota(data.begin(), data.end(), 1);
+    q.copy(data.data(), d_data, n);
+  };
+
+  int *d_result = sycl::malloc_device<int>(n, q);
+
+  for (auto _ : state) {
+    syclalgo::exclusive_spwdlb_scan(q, n, d_data, d_result).wait();
+  }
+
+  sycl::free(d_data, q);
+  sycl::free(d_result, q);
+}
+
 constexpr size_t MB = 1024 * 1024;
 
 constexpr size_t MIN_COUNT = 1 * MB / sizeof(int);
@@ -148,5 +170,6 @@ BENCHMARK(onedpl_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 #endif
 BENCHMARK(recursive_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 BENCHMARK(stream_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
+BENCHMARK(spwdlb_scan)->RangeMultiplier(2)->Range(MIN_COUNT, MAX_COUNT);
 
 } // namespace

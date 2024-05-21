@@ -315,14 +315,188 @@ auto stream_scan(sycl::queue &q, int n, const int *d_data, int *d_out,
 
 } // namespace
 
+namespace {
+
+template <ScanType ST>
+auto spwdlb_scan(sycl::queue &q, int n, const int *d_data, int *d_out,
+                 std::span<const sycl::event> dependences = {}) -> sycl::event {
+  constexpr int BLOCK_SIZE = 256;
+  constexpr int ELEMS = 7;
+  constexpr int BLOCK_ELEMS = BLOCK_SIZE * ELEMS;
+
+  size_t num_groups = ceil_div(n, BLOCK_ELEMS);
+
+  enum PartitionStatus : int {
+    Invalid = 0,
+    AggregateAvailable,
+    PrefixAvailable,
+  };
+
+  struct PartitionDescriptor {
+    union {
+      struct {
+        union {
+          int32_t aggregate;
+          int32_t inclusive_prefix;
+        };
+        int32_t status;
+      };
+      int64_t value;
+    };
+  };
+
+  int *d_bid = sycl::malloc_device<int>(1, q);
+  auto *d_descriptors =
+      sycl::malloc_device<PartitionDescriptor>(num_groups + 1, q) + 1;
+
+  sycl::event e =
+      q.parallel_for(sycl::range(num_groups), [=](sycl::item<1> id) {
+        if (id == 0) {
+          *d_bid = 0;
+          d_descriptors[-1] = {
+              .inclusive_prefix = 0,
+              .status = PrefixAvailable,
+          };
+        }
+        d_descriptors[id].status = Invalid;
+      });
+
+  e = q.submit([&](sycl::handler &cg) {
+    constexpr int SHM_ROW_ELEMS = ELEMS + (ELEMS % 2 == 0);
+
+    sycl::local_accessor<int, 2> shm({BLOCK_SIZE, SHM_ROW_ELEMS}, cg);
+    sycl::local_accessor<int> scan_shm(BLOCK_SIZE, cg);
+
+    constexpr int SHM_SIZE = BLOCK_SIZE * SHM_ROW_ELEMS + BLOCK_SIZE;
+
+    cg.depends_on(e);
+    depends_on(cg, dependences);
+
+    sycl::nd_range<1> range = {num_groups * BLOCK_SIZE, BLOCK_SIZE};
+    cg.parallel_for(range, [=](sycl::nd_item<1> id) {
+      auto g = id.get_group();
+      auto sg = id.get_sub_group();
+      int lid = id.get_local_id();
+      int sg_lid = sg.get_local_id();
+
+      if (lid == 0) {
+        sycl::atomic_ref<int, sycl::memory_order_relaxed,
+                         sycl::memory_scope::device,
+                         sycl::access::address_space::global_space>
+            bid_ref(*d_bid);
+        int bid = bid_ref.fetch_add(1);
+        scan_shm[BLOCK_SIZE - 1] = bid;
+      }
+      sycl::group_barrier(g);
+
+      int bid;
+      if (sg_lid == 0) {
+        bid = scan_shm[BLOCK_SIZE - 1];
+      }
+      sycl::group_barrier(sg);
+      bid = sycl::group_broadcast(sg, bid, 0);
+
+      int r = 0;
+      for (int i = 0; i < ELEMS; ++i) {
+        int gidx = bid * BLOCK_ELEMS + lid * ELEMS + i;
+        int v;
+        if constexpr (ST == ScanType::Exclusive) {
+          v = gidx > 0 && gidx < n ? d_data[gidx - 1] : 0;
+        } else if constexpr (ST == ScanType::Inclusive) {
+          v = gidx < n ? d_data[gidx] : 0;
+        }
+        r += v;
+        shm[lid][i] = v;
+      }
+      scan_shm[lid] = r;
+      sycl::group_barrier(g);
+
+      group_inclusive_scan<BLOCK_SIZE, 1>(g, scan_shm);
+
+      if (lid == 0) {
+        sycl::atomic_ref<int64_t, sycl::memory_order_relaxed,
+                         sycl::memory_scope::device,
+                         sycl::access::address_space::global_space>
+            desc_ref(d_descriptors[bid].value);
+        {
+          int block_sum = scan_shm[BLOCK_SIZE - 1];
+          PartitionDescriptor desc = {
+              .aggregate = block_sum,
+              .status = AggregateAvailable,
+          };
+          desc_ref.store(desc.value);
+        }
+
+        int exclusive_prefix = 0;
+        for (int pid = bid - 1;; --pid) {
+          PartitionDescriptor desc;
+          do {
+            sycl::atomic_ref<int64_t, sycl::memory_order_relaxed,
+                             sycl::memory_scope::device,
+                             sycl::access::address_space::global_space>
+                desc_ref(d_descriptors[pid].value);
+            desc.value = desc_ref.load();
+          } while (desc.status == Invalid);
+          if (desc.status == AggregateAvailable) {
+            exclusive_prefix += desc.aggregate;
+          } else {
+            exclusive_prefix += desc.inclusive_prefix;
+            break;
+          }
+        }
+
+        {
+          int block_sum = scan_shm[BLOCK_SIZE - 1];
+          PartitionDescriptor desc = {
+              .inclusive_prefix = exclusive_prefix + block_sum,
+              .status = PrefixAvailable,
+          };
+          desc_ref.store(desc.value);
+        }
+
+        scan_shm[BLOCK_SIZE - 1] = exclusive_prefix;
+      }
+
+      sycl::group_barrier(g);
+
+      int exclusive_prefix;
+      if (sg_lid == 0) {
+        exclusive_prefix = scan_shm[BLOCK_SIZE - 1];
+      }
+      sycl::group_barrier(sg);
+      exclusive_prefix = sycl::group_broadcast(sg, exclusive_prefix, 0);
+
+      int s = exclusive_prefix + (lid > 0 ? scan_shm[lid - 1] : 0);
+      for (int i = 0; i < ELEMS; ++i) {
+        s += shm[lid][i];
+
+        int gidx = bid * BLOCK_ELEMS + lid * ELEMS + i;
+        if (gidx < n) {
+          d_out[gidx] = s;
+        }
+      }
+    });
+  });
+
+  std::thread([q, e, d_bid, d_descriptors]() mutable {
+    e.wait();
+    sycl::free(d_bid, q);
+    sycl::free(d_descriptors - 1, q);
+  }).detach();
+
+  return e;
+}
+
+} // namespace
+
 auto exclusive_scan(sycl::queue &q, size_t n, const int *d_data, int *d_out,
                     std::span<const sycl::event> dependences) -> sycl::event {
-  return exclusive_stream_scan(q, n, d_data, d_out, dependences);
+  return exclusive_spwdlb_scan(q, n, d_data, d_out, dependences);
 }
 
 auto inclusive_scan(sycl::queue &q, size_t n, const int *d_data, int *d_out,
                     std::span<const sycl::event> dependences) -> sycl::event {
-  return inclusive_stream_scan(q, n, d_data, d_out, dependences);
+  return inclusive_spwdlb_scan(q, n, d_data, d_out, dependences);
 }
 
 auto exclusive_recursive_scan(sycl::queue &q, size_t n, const int *d_data,
@@ -349,6 +523,18 @@ auto inclusive_stream_scan(sycl::queue &q, size_t n, const int *d_data,
                            int *d_out, std::span<const sycl::event> dependences)
     -> sycl::event {
   return stream_scan<ScanType::Inclusive>(q, n, d_data, d_out, dependences);
+}
+
+auto exclusive_spwdlb_scan(sycl::queue &q, size_t n, const int *d_data,
+                           int *d_out, std::span<const sycl::event> dependences)
+    -> sycl::event {
+  return spwdlb_scan<ScanType::Exclusive>(q, n, d_data, d_out, dependences);
+}
+
+auto inclusive_spwdlb_scan(sycl::queue &q, size_t n, const int *d_data,
+                           int *d_out, std::span<const sycl::event> dependences)
+    -> sycl::event {
+  return spwdlb_scan<ScanType::Inclusive>(q, n, d_data, d_out, dependences);
 }
 
 } // namespace syclalgo

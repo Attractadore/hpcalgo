@@ -185,4 +185,74 @@ TEST(Scan, InclusiveStreamScan) {
   }
 }
 
+void test_exclusive_spwdlb_scan(sycl::queue &q, size_t n) {
+  std::vector<int> data(n);
+  std::iota(data.begin(), data.end(), 1);
+
+  std::vector<int> scan(n);
+  std::exclusive_scan(data.begin(), data.end(), scan.begin(), 0);
+
+  int *d_data = sycl::malloc_device<int>(n, q);
+  sycl::event e = q.copy(data.data(), d_data, n);
+
+  int *d_result = sycl::malloc_device<int>(n, q);
+
+  e = syclalgo::exclusive_spwdlb_scan(q, n, d_data, d_result, {&e, 1});
+
+  std::vector<int> result(n);
+  q.copy(d_result, result.data(), n, e).wait();
+
+  sycl::free(d_data, q);
+  sycl::free(d_result, q);
+
+  EXPECT_EQ(scan, result);
+}
+
+TEST(Scan, ExclusiveSPWDLBScan) {
+  sycl::queue q;
+  {
+    SCOPED_TRACE("exclusive_spwdlb_scan: single block");
+    test_exclusive_spwdlb_scan(q, 100);
+  }
+  {
+    SCOPED_TRACE("exclusive_spwdlb_scan: multi block");
+    test_exclusive_spwdlb_scan(q, 100'000);
+  }
+}
+
+void test_inclusive_spwdlb_scan(sycl::queue &q, size_t n) {
+  std::vector<int> data(n);
+  std::iota(data.begin(), data.end(), 1);
+
+  std::vector<int> scan(n);
+  std::inclusive_scan(data.begin(), data.end(), scan.begin());
+
+  int *d_data = sycl::malloc_device<int>(n, q);
+  sycl::event e = q.copy(data.data(), d_data, n);
+
+  int *d_result = sycl::malloc_device<int>(n, q);
+
+  e = syclalgo::inclusive_spwdlb_scan(q, n, d_data, d_result, {&e, 1});
+
+  std::vector<int> result(n);
+  q.copy(d_result, result.data(), n, e).wait();
+
+  sycl::free(d_data, q);
+  sycl::free(d_result, q);
+
+  EXPECT_EQ(scan, result);
+}
+
+TEST(Scan, InclusiveSPWDLBScan) {
+  sycl::queue q;
+  {
+    SCOPED_TRACE("inclusive_spwdlb_scan: single block");
+    test_inclusive_spwdlb_scan(q, 100);
+  }
+  {
+    SCOPED_TRACE("inclusive_spwdlb_scan: multi block");
+    test_inclusive_spwdlb_scan(q, 100'000);
+  }
+}
+
 } // namespace

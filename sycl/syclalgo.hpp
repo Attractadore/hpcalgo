@@ -36,4 +36,14 @@ auto inclusive_stream_scan(sycl::queue &q, size_t n, const int *d_data,
                            std::span<const sycl::event> dependences = {})
     -> sycl::event;
 
+auto exclusive_spwdlb_scan(sycl::queue &q, size_t n, const int *d_data,
+                           int *d_out,
+                           std::span<const sycl::event> dependences = {})
+    -> sycl::event;
+
+auto inclusive_spwdlb_scan(sycl::queue &q, size_t n, const int *d_data,
+                           int *d_out,
+                           std::span<const sycl::event> dependences = {})
+    -> sycl::event;
+
 } // namespace syclalgo
